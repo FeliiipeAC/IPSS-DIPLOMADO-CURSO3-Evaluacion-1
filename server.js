@@ -35,6 +35,9 @@ const buscarSeleccionPorId = (id) =>
 const buscarContinentePorNombre = (nombre) =>
   continentes.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
 
+const buscarSeleccionPorNombre = (nombre) =>
+  selecciones.find((s) => s.nombre.toLowerCase() === nombre.toLowerCase());
+
 // -------------------------------------------------------------------------
 // 4. Rutas
 // -------------------------------------------------------------------------
@@ -79,6 +82,30 @@ app.get("/api/selecciones/:id", (req, res) => {
   }
 
   res.status(200).json(seleccion);
+});
+
+// ---- Copas -------------------------------------------------------------
+
+// flatMap: map dejaría 16 arrays anidados; flatMap aplana todo en una sola
+// lista. sort ordena la copia nueva, sin tocar los datos originales.
+app.get("/api/copas", (req, res) => { // ← NUEVO
+  const copas = selecciones.flatMap((s) => s.copas).sort((a, b) => a - b);
+
+  res.status(200).json(copas);
+});
+
+app.get("/api/copas/:seleccion", (req, res) => {
+  const seleccion = buscarSeleccionPorNombre(req.params.seleccion);
+
+  // "No existe" y "no tiene" son cosas distintas: si la selección no
+  // está, 404; si existe pero nunca ganó, 200 con [] (vacío NO es error).
+  if (!seleccion) {
+    return res
+      .status(404)
+      .json({ error: `No existe la selección ${req.params.seleccion}` });
+  }
+
+  res.status(200).json(seleccion.copas);
 });
 
 // -------------------------------------------------------------------------
