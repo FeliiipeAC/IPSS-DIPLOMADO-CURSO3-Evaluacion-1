@@ -38,6 +38,79 @@ const buscarContinentePorNombre = (nombre) =>
 const buscarSeleccionPorNombre = (nombre) =>
   selecciones.find((s) => s.nombre.toLowerCase() === nombre.toLowerCase());
 
+const buscarSemifinal = (numero) =>
+  partidos.semifinales.find((p) => p.numero === numero);
+
+// Valida el cuerpo de un POST de partido. Devuelve el primer error que
+// encuentre (texto) o null si todo está bien. Así semifinal y final
+// comparten exactamente las mismas reglas.
+const validarPartido = (body) => {
+  const { local, visita } = body;
+
+  if (
+    !local ||
+    !visita ||
+    local.seleccionId === undefined ||
+    local.goles === undefined ||
+    visita.seleccionId === undefined ||
+    visita.goles === undefined
+  ) {
+    return "Faltan datos: se requiere local y visita, cada uno con seleccionId y goles";
+  }
+
+  if (
+    !Number.isInteger(local.seleccionId) ||
+    !Number.isInteger(visita.seleccionId)
+  ) {
+    return "El seleccionId debe ser el id numérico de la selección";
+  }
+
+  // Un marcador real es un entero >= 0. Number.isInteger rechaza de una
+  // vez textos ("2"), decimales, null y NaN.
+  if (
+    !Number.isInteger(local.goles) ||
+    local.goles < 0 ||
+    !Number.isInteger(visita.goles) ||
+    visita.goles < 0
+  ) {
+    return "Los goles deben ser un número entero mayor o igual a 0";
+  }
+
+  if (!buscarSeleccionPorId(local.seleccionId)) {
+    return `No existe la selección con id ${local.seleccionId}`;
+  }
+
+  if (!buscarSeleccionPorId(visita.seleccionId)) {
+    return `No existe la selección con id ${visita.seleccionId}`;
+  }
+
+  if (local.seleccionId === visita.seleccionId) {
+    return "Una selección no puede jugar contra sí misma";
+  }
+
+  if (local.goles === visita.goles) {
+    return "En un partido de eliminación directa no puede haber empate";
+  }
+
+  return null;
+};
+
+// El POST recibe IDS, pero el GET responde con NOMBRES: aquí resuelvo
+// cada id a su selección (otra búsqueda anidada) y calculo el ganador
+// comparando los goles. El ganador NO se guarda: se deduce del marcador.
+const partidoConNombres = (titulo, partido) => {
+  const local = buscarSeleccionPorId(partido.local.seleccionId);
+  const visita = buscarSeleccionPorId(partido.visita.seleccionId);
+
+  return {
+    partido: titulo,
+    local: { seleccion: local.nombre, goles: partido.local.goles },
+    visita: { seleccion: visita.nombre, goles: partido.visita.goles },
+    ganador:
+      partido.local.goles > partido.visita.goles ? local.nombre : visita.nombre,
+  };
+};
+
 // -------------------------------------------------------------------------
 // 4. Rutas
 // -------------------------------------------------------------------------
@@ -88,7 +161,7 @@ app.get("/api/selecciones/:id", (req, res) => {
 
 // flatMap: map dejaría 16 arrays anidados; flatMap aplana todo en una sola
 // lista. sort ordena la copia nueva, sin tocar los datos originales.
-app.get("/api/copas", (req, res) => { // ← NUEVO
+app.get("/api/copas", (req, res) => {
   const copas = selecciones.flatMap((s) => s.copas).sort((a, b) => a - b);
 
   res.status(200).json(copas);
