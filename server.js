@@ -32,12 +32,41 @@ app.use(express.json()); // transforma el cuerpo de las peticiones en JSON
 const buscarSeleccionPorId = (id) =>
   selecciones.find((s) => s.id === Number(id));
 
+const buscarContinentePorNombre = (nombre) =>
+  continentes.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
+
 // -------------------------------------------------------------------------
 // 4. Rutas
 // -------------------------------------------------------------------------
-
 app.get("/api/selecciones", (req, res) => {
-  res.status(200).json(selecciones);
+  const { continente, campeon } = req.query;
+
+  let resultado = selecciones;
+
+  if (continente) {
+    // Búsqueda anidada: la selección solo guarda continenteId, no el nombre.
+    // 1er salto: encontrar el continente por su nombre.
+    // 2do salto: filtrar las selecciones por ese id.
+    const continenteEncontrado = buscarContinentePorNombre(continente);
+
+    if (!continenteEncontrado) {
+      return res
+        .status(404)
+        .json({ error: `No existe el continente ${continente}` });
+    }
+
+    resultado = resultado.filter(
+      (s) => s.continenteId === continenteEncontrado.id,
+    );
+  }
+
+  if (campeon === "true") {
+    // Campeona = ganó al menos una copa. El dato es un ARRAY de años:
+    // basta con mirar su largo.
+    resultado = resultado.filter((s) => s.copas.length > 0);
+  }
+
+  res.status(200).json(resultado);
 });
 
 app.get("/api/selecciones/:id", (req, res) => {
