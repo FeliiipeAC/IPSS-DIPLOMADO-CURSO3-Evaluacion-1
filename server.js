@@ -181,6 +181,80 @@ app.get("/api/copas/:seleccion", (req, res) => {
   res.status(200).json(seleccion.copas);
 });
 
+// ---- Mundial 2026: semifinales -----------------------------------------
+
+// Las cuatro semifinales, con resultado o marcadas pendientes.
+// map transforma la lista fija [1,2,3,4] en otra del mismo largo.
+app.get("/api/worldcup/2026/semifinals", (req, res) => {
+  const semifinales = [1, 2, 3, 4].map((n) => {
+    const semifinal = buscarSemifinal(n);
+
+    return semifinal
+      ? partidoConNombres(`semifinal ${n}`, semifinal)
+      : { partido: `semifinal ${n}`, estado: "pendiente" };
+  });
+
+  res.status(200).json(semifinales);
+});
+
+app.get("/api/worldcup/2026/semifinals/:n", (req, res) => {
+  const numero = Number(req.params.n);
+
+  // La semifinal 7 no es un recurso que "aún no existe": es un dato que
+  // NUNCA podrá ser válido. Por eso 400 (petición mala) y no 404.
+  if (!Number.isInteger(numero) || numero < 1 || numero > 4) {
+    return res
+      .status(400)
+      .json({ error: "El número de semifinal debe estar entre 1 y 4" });
+  }
+
+  const semifinal = buscarSemifinal(numero);
+
+  if (!semifinal) {
+    return res
+      .status(404)
+      .json({ error: `La semifinal ${numero} aún no se ha jugado` });
+  }
+
+  res.status(200).json(partidoConNombres(`semifinal ${numero}`, semifinal));
+});
+
+// UNA sola ruta registra las cuatro: el número llega como parámetro.
+app.post("/api/worldcup/2026/semifinals/:n", (req, res) => {
+  const numero = Number(req.params.n);
+
+  if (!Number.isInteger(numero) || numero < 1 || numero > 4) {
+    return res
+      .status(400)
+      .json({ error: "El número de semifinal debe estar entre 1 y 4" });
+  }
+
+  // some responde "¿existe al menos una que cumpla?": la pregunta exacta
+  // para detectar un registro duplicado.
+  if (partidos.semifinales.some((p) => p.numero === numero)) {
+    return res
+      .status(400)
+      .json({ error: `La semifinal ${numero} ya fue registrada` });
+  }
+
+  const errorValidacion = validarPartido(req.body);
+
+  if (errorValidacion) {
+    return res.status(400).json({ error: errorValidacion });
+  }
+
+  const { local, visita } = req.body;
+  const partido = {
+    numero,
+    local: { seleccionId: local.seleccionId, goles: local.goles },
+    visita: { seleccionId: visita.seleccionId, goles: visita.goles },
+  };
+
+  partidos.semifinales.push(partido);
+
+  res.status(201).json(partidoConNombres(`semifinal ${numero}`, partido));
+});
+
 // -------------------------------------------------------------------------
 // 9. Arranque
 // -------------------------------------------------------------------------
