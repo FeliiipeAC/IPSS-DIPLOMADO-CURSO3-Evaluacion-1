@@ -255,6 +255,48 @@ app.post("/api/worldcup/2026/semifinals/:n", (req, res) => {
   res.status(201).json(partidoConNombres(`semifinal ${numero}`, partido));
 });
 
+// ---- Mundial 2026: la final --------------------------------------------
+
+app.get("/api/worldcup/2026/final", (req, res) => {
+  if (!partidos.final) {
+    return res.status(404).json({ error: "La final aún no se ha jugado" });
+  }
+
+  res.status(200).json(partidoConNombres("final", partidos.final));
+});
+
+app.post("/api/worldcup/2026/final", (req, res) => {
+  // La final se juega UNA vez. Rechazar el re-registro también evita que
+  // la copa 2026 pudiera agregarse dos veces al ganador.
+  if (partidos.final) {
+    return res.status(400).json({ error: "La final ya fue registrada" });
+  }
+
+  const errorValidacion = validarPartido(req.body);
+
+  if (errorValidacion) {
+    return res.status(400).json({ error: errorValidacion });
+  }
+
+  const { local, visita } = req.body;
+
+  partidos.final = {
+    local: { seleccionId: local.seleccionId, goles: local.goles },
+    visita: { seleccionId: visita.seleccionId, goles: visita.goles },
+  };
+
+  // 🌟 Desafío extra: El ganador recibe el año 2026
+  // en su array de copas automáticamente.
+  const ganador =
+    local.goles > visita.goles
+      ? buscarSeleccionPorId(local.seleccionId)
+      : buscarSeleccionPorId(visita.seleccionId);
+
+  ganador.copas.push(2026);
+
+  res.status(201).json(partidoConNombres("final", partidos.final));
+});
+
 // -------------------------------------------------------------------------
 // 9. Arranque
 // -------------------------------------------------------------------------
