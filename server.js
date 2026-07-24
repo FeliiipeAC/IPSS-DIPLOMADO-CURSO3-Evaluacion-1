@@ -25,6 +25,12 @@ const app = express();
 app.use(cors(OPCIONES_CORS));
 app.use(express.json()); // transforma el cuerpo de las peticiones en JSON
 
+// Log en vivo: imprime cada petición que llega a la API.
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+  next();
+});
+
 // -------------------------------------------------------------------------
 // 3. Funciones helper
 // -------------------------------------------------------------------------
@@ -377,6 +383,29 @@ app.get("/api/worldcup/2026/camino/:seleccionId", (req, res) => {
   }
 
   res.status(200).json({ seleccion: seleccion.nombre, partidos: camino });
+});
+
+// -------------------------------------------------------------------------
+// 8. Ruta no encontrada y manejo de errores
+// -------------------------------------------------------------------------
+
+// Si ninguna ruta de arriba respondió, la petición cae aquí: 404 en JSON
+// con mensaje claro, en vez de la página de error HTML de Express.
+app.use((req, res) => {
+  res.status(404).json({ error: `La ruta ${req.originalUrl} no existe` });
+});
+
+// Manejador de errores (se reconoce por sus 4 argumentos): atrapa cualquier
+// error al procesar una petición y responde JSON en vez de caerse.
+// El caso más común: un body con JSON malformado.
+app.use((error, req, res, next) => {
+  if (error.type === "entity.parse.failed") {
+    return res
+      .status(400)
+      .json({ error: "JSON inválido en el cuerpo de la petición" });
+  }
+
+  res.status(400).json({ error: "Petición inválida" });
 });
 
 // -------------------------------------------------------------------------
