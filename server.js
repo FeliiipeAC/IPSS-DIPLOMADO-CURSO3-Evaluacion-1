@@ -326,6 +326,59 @@ app.get("/api/estadisticas", (req, res) => {
   });
 });
 
+// ---- Desafíos extra ----------------------------------------------------
+
+// Tabla de posiciones: las selecciones del grupo ordenadas por ranking FIFA.
+app.get("/api/grupos/:nombre/tabla", (req, res) => {
+  const grupo = grupos.find(
+    (g) => g.nombre.toLowerCase() === req.params.nombre.toLowerCase(),
+  );
+
+  if (!grupo) {
+    return res
+      .status(404)
+      .json({ error: `No existe el grupo ${req.params.nombre}` });
+  }
+
+  // sort muta el array donde trabaja, pero aquí muta la COPIA que devolvió
+  // filter: el dataset original queda intacto.
+  const tabla = selecciones
+    .filter((s) => s.grupoId === grupo.id)
+    .sort((a, b) => a.fifaRanking - b.fifaRanking)
+    .map((s, indice) => ({
+      posicion: indice + 1,
+      nombre: s.nombre,
+      fifaRanking: s.fifaRanking,
+    }));
+
+  res.status(200).json(tabla);
+});
+
+// Camino al título: todos los partidos que jugó una selección en el torneo.
+app.get("/api/worldcup/2026/camino/:seleccionId", (req, res) => {
+  const seleccion = buscarSeleccionPorId(req.params.seleccionId);
+
+  if (!seleccion) {
+    return res
+      .status(404)
+      .json({ error: `No existe la selección ${req.params.seleccionId}` });
+  }
+
+  const jugoElPartido = (p) =>
+    p.local.seleccionId === seleccion.id ||
+    p.visita.seleccionId === seleccion.id;
+
+  const camino = partidos.semifinales
+    .filter(jugoElPartido)
+    .map((p) => partidoConNombres(`semifinal ${p.numero}`, p));
+
+  if (partidos.final && jugoElPartido(partidos.final)) {
+    camino.push(partidoConNombres("final", partidos.final));
+  }
+
+  res.status(200).json({ seleccion: seleccion.nombre, partidos: camino });
+});
+
 // -------------------------------------------------------------------------
 // 9. Arranque
 // -------------------------------------------------------------------------
