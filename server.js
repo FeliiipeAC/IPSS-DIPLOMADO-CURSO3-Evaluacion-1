@@ -297,6 +297,35 @@ app.post("/api/worldcup/2026/final", (req, res) => {
   res.status(201).json(partidoConNombres("final", partidos.final));
 });
 
+// ---- Estadísticas ------------------------------------------------------
+
+// reduce recorre el array acumulando. Con un NÚMERO de partida sirve para
+// sumar; con un OBJETO de partida sirve para contar por categoría.
+app.get("/api/estadisticas", (req, res) => {
+  // Acumulador número: sumo el largo del array de copas de cada selección.
+  const totalCopasRepartidas = selecciones.reduce(
+    (acc, s) => acc + s.copas.length,
+    0,
+  );
+
+  // Acumulador objeto: por cada selección resuelvo el NOMBRE de su
+  // continente (búsqueda anidada adentro del reduce) y sumo 1 a esa clave.
+  const seleccionesPorContinente = selecciones.reduce((acc, s) => {
+    const continente = continentes.find((c) => c.id === s.continenteId);
+    acc[continente.nombre] = (acc[continente.nombre] || 0) + 1;
+    return acc; // ← SIEMPRE devolver el acumulador (el olvido clásico)
+  }, {});
+
+  const sumaRankings = selecciones.reduce((acc, s) => acc + s.fifaRanking, 0);
+
+  res.status(200).json({
+    totalSelecciones: selecciones.length,
+    totalCopasRepartidas,
+    seleccionesPorContinente,
+    rankingFifaPromedio: sumaRankings / selecciones.length,
+  });
+});
+
 // -------------------------------------------------------------------------
 // 9. Arranque
 // -------------------------------------------------------------------------
